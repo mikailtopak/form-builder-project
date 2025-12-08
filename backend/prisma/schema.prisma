@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  forms     Form[]
+  createdAt DateTime @default(now())
+}
+
+model Form {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  structure   Json     // Form bileşenleri JSON olarak
+  rules       Json?    // Kural motoru kuralları
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  submissions Submission[]
+  createdAt   DateTime @default(now())
+}
+
+model Submission {
+  id        Int      @id @default(autoincrement())
+  formId    Int
+  form      Form     @relation(fields: [formId], references: [id])
+  data      Json     // Gönderilen cevaplar
+  createdAt DateTime @default(now())
+}
