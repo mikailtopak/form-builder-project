@@ -11,12 +11,23 @@ const common_1 = require("@nestjs/common");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const health_controller_1 = require("./health.controller");
+const users_module_1 = require("./users/users.module");
+const prisma_module_1 = require("./prisma/prisma.module");
+const config_1 = require("@nestjs/config");
+const forms_module_1 = require("./forms/forms.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [],
+        imports: [
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+            }),
+            prisma_module_1.PrismaModule,
+            users_module_1.UsersModule,
+            forms_module_1.FormsModule,
+        ],
         controllers: [app_controller_1.AppController, health_controller_1.HealthController],
         providers: [app_service_1.AppService],
     })
