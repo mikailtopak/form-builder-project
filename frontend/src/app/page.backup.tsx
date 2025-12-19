@@ -87,6 +87,18 @@ export default function Home() {
     setSelectedField(field);
   };
 
+  // EKLEDİĞİM YENİ FONKSİYON - onDeleteField için
+  const handleDeleteField = (fieldId: string) => {
+    setFields(fields.filter(field => field.id !== fieldId));
+    
+    // Eğer silinen field seçiliyse, seçimi temizle
+    if (selectedField?.id === fieldId) {
+      setSelectedField(null);
+    }
+    
+    console.log(`Field ${fieldId} deleted`);
+  };
+
   const handleFieldUpdate = (updatedField: FormField) => {
     setFields(fields.map(f => 
       f.id === updatedField.id ? updatedField : f
@@ -368,6 +380,7 @@ export default function Home() {
                   fields={fields}
                   onFieldSelect={handleFieldSelect}
                   selectedFieldId={selectedField?.id}
+                  onDeleteField={handleDeleteField} // BURASI DÜZELTİLDİ
                 />
               ) : (
                 <div className="text-center py-12">
