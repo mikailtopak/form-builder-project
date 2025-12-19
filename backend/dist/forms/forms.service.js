@@ -18,70 +18,73 @@ let FormsService = class FormsService {
         this.prisma = prisma;
     }
     async createForm(userId, createFormDto) {
-        const user = await this.prisma.user.findUnique({
+        let user = await this.prisma.user.findUnique({
             where: { id: userId },
         });
         if (!user) {
-            throw new common_1.NotFoundException('Kullanıcı bulunamadı');
+            user = await this.prisma.user.create({
+                data: {
+                    id: 1,
+                    email: 'demo@formbuilder.com',
+                    name: 'Demo User',
+                    password: 'demo123'
+                },
+            });
         }
         const form = await this.prisma.form.create({
             data: {
                 title: createFormDto.title,
-                description: createFormDto.description,
+                description: createFormDto.description || '',
                 structure: createFormDto.fields,
                 rules: createFormDto.rules,
                 userId: userId,
             },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                    },
-                },
-            },
         });
         return {
+            id: form.id,
+            title: form.title,
+            fields: form.structure,
+            rules: form.rules,
+            createdAt: form.createdAt,
             message: 'Form başarıyla oluşturuldu',
-            form,
         };
     }
-    async getUserForms(userId) {
+    async getAllForms() {
         const forms = await this.prisma.form.findMany({
-            where: { userId },
             orderBy: { createdAt: 'desc' },
             select: {
                 id: true,
                 title: true,
                 description: true,
+                structure: true,
+                rules: true,
                 createdAt: true,
-                _count: {
-                    select: {
-                        submissions: true,
-                    },
-                },
             },
         });
-        return forms;
+        return forms.map(form => ({
+            id: form.id,
+            title: form.title,
+            description: form.description,
+            fields: form.structure,
+            rules: form.rules,
+            createdAt: form.createdAt,
+        }));
     }
     async getFormById(id) {
         const form = await this.prisma.form.findUnique({
             where: { id },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                    },
-                },
-            },
         });
         if (!form) {
             throw new common_1.NotFoundException('Form bulunamadı');
         }
-        return form;
+        return {
+            id: form.id,
+            title: form.title,
+            description: form.description,
+            fields: form.structure,
+            rules: form.rules,
+            createdAt: form.createdAt,
+        };
     }
     async updateForm(id, updateFormDto) {
         const existingForm = await this.prisma.form.findUnique({
@@ -109,7 +112,13 @@ let FormsService = class FormsService {
         });
         return {
             message: 'Form başarıyla güncellendi',
-            form,
+            form: {
+                id: form.id,
+                title: form.title,
+                fields: form.structure,
+                rules: form.rules,
+                createdAt: form.createdAt,
+            },
         };
     }
     async deleteForm(id) {
@@ -119,6 +128,9 @@ let FormsService = class FormsService {
         if (!existingForm) {
             throw new common_1.NotFoundException('Form bulunamadı');
         }
+        await this.prisma.submission.deleteMany({
+            where: { formId: id },
+        });
         await this.prisma.form.delete({
             where: { id },
         });
@@ -137,12 +149,14 @@ let FormsService = class FormsService {
         const submission = await this.prisma.submission.create({
             data: {
                 formId,
-                data: data,
+                data: data.answers || data,
             },
         });
         return {
+            success: true,
             message: 'Form başarıyla gönderildi',
-            submission,
+            submissionId: submission.id,
+            submittedAt: submission.createdAt,
         };
     }
     async getFormSubmissions(formId) {
@@ -150,78 +164,24 @@ let FormsService = class FormsService {
             where: { formId },
             orderBy: { createdAt: 'desc' },
         });
-        return submissions;
-    }
-    validateField(value, field) {
-        const errors = [];
-        if (!field.validationRules || field.validationRules.length === 0) {
-            return errors;
-        }
-        for (const rule of field.validationRules) {
-            const error = this.validateRule(value, rule, field.type);
-            if (error) {
-                errors.push(error);
-            }
-        }
-        return errors;
-    }
-    validateRule(value, rule, fieldType) {
-        if (value === undefined || value === null || value === '') {
-            if (rule.type === 'required') {
-                return rule.message || 'Bu alan zorunludur';
-            }
-            return null;
-        }
-        switch (rule.type) {
-            case 'required':
-                if (!value && value !== false && value !== 0) {
-                    return rule.message || 'Bu alan zorunludur';
-                }
-                break;
-            case 'minLength':
-                if (String(value).length < Number(rule.value)) {
-                    return rule.message || `Minimum ${rule.value} karakter olmalıdır`;
-                }
-                break;
-            case 'maxLength':
-                if (String(value).length > Number(rule.value)) {
-                    return rule.message || `Maksimum ${rule.value} karakter olmalıdır`;
-                }
-                break;
-            case 'min':
-                if (Number(value) < Number(rule.value)) {
-                    return rule.message || `Minimum değer ${rule.value} olmalıdır`;
-                }
-                break;
-            case 'max':
-                if (Number(value) > Number(rule.value)) {
-                    return rule.message || `Maksimum değer ${rule.value} olmalıdır`;
-                }
-                break;
-            case 'email':
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(value)) {
-                    return rule.message || 'Geçerli bir e-posta adresi giriniz';
-                }
-                break;
-            case 'pattern':
-                try {
-                    const regex = new RegExp(rule.value);
-                    if (!regex.test(value)) {
-                        return rule.message || 'Geçerli bir format giriniz';
-                    }
-                }
-                catch (error) {
-                    return 'Geçersiz regex pattern';
-                }
-                break;
-        }
-        return null;
+        return submissions.map(sub => ({
+            id: sub.id,
+            data: sub.data,
+            submittedAt: sub.createdAt,
+            formId: sub.formId,
+        }));
     }
     validateForm(data, fields) {
         const errors = {};
         for (const field of fields) {
-            const fieldErrors = this.validateField(data[field.id], field);
+            const fieldErrors = [];
+            const value = data[field.id];
+            if (field.required) {
+                if (value === undefined || value === null || value === '' ||
+                    (field.type === 'checkbox' && value === false)) {
+                    fieldErrors.push('Bu alan zorunludur');
+                }
+            }
             if (fieldErrors.length > 0) {
                 errors[field.id] = fieldErrors;
             }

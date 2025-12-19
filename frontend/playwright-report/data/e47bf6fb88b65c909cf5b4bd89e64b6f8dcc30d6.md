@@ -1,0 +1,161 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - heading "Form Builder" [level=1] [ref=e7]
+            - paragraph [ref=e8]: Dinamik Kurallı Form Tasarımcısı - PWA
+          - generic [ref=e9]:
+            - generic [ref=e12]: Çevrimiçi
+            - button "API Test" [ref=e13]
+            - button "Formu Temizle" [ref=e14]
+            - button "Formu Kaydet" [ref=e15]
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: Form Başlığı
+            - textbox "Form başlığını giriniz" [ref=e19]: Yeni Form
+          - generic [ref=e20]:
+            - generic [ref=e21]: Form Açıklaması
+            - textbox "Form açıklamasını giriniz" [ref=e22]: Dinamik olarak oluşturuldu
+    - generic [ref=e24]:
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - heading "Bileşenler" [level=2] [ref=e28]
+          - button "Örnek Form" [ref=e29]
+        - generic [ref=e30]:
+          - heading "Bileşenler" [level=3] [ref=e31]
+          - paragraph [ref=e32]: Bileşenleri forma eklemek için tıklayın
+          - generic [ref=e33]:
+            - button "Metin Alanı 'Tıklayarak ekleyin'" [active] [ref=e34]:
+              - img [ref=e36]
+              - generic [ref=e38]:
+                - generic [ref=e39]: Metin Alanı
+                - generic [ref=e40]: "'Tıklayarak ekleyin'"
+            - button "E-posta 'Tıklayarak ekleyin'" [ref=e41]:
+              - img [ref=e43]
+              - generic [ref=e46]:
+                - generic [ref=e47]: E-posta
+                - generic [ref=e48]: "'Tıklayarak ekleyin'"
+            - button "Sayı 'Tıklayarak ekleyin'" [ref=e49]:
+              - img [ref=e51]
+              - generic [ref=e54]:
+                - generic [ref=e55]: Sayı
+                - generic [ref=e56]: "'Tıklayarak ekleyin'"
+            - button "Tarih 'Tıklayarak ekleyin'" [ref=e57]:
+              - img [ref=e59]
+              - generic [ref=e61]:
+                - generic [ref=e62]: Tarih
+                - generic [ref=e63]: "'Tıklayarak ekleyin'"
+            - button "Seçim Kutusu 'Tıklayarak ekleyin'" [ref=e64]:
+              - img [ref=e66]
+              - generic [ref=e67]:
+                - generic [ref=e68]: Seçim Kutusu
+                - generic [ref=e69]: "'Tıklayarak ekleyin'"
+            - button "Onay Kutusu 'Tıklayarak ekleyin'" [ref=e70]:
+              - img [ref=e72]
+              - generic [ref=e75]:
+                - generic [ref=e76]: Onay Kutusu
+                - generic [ref=e77]: "'Tıklayarak ekleyin'"
+            - button "Çok Satırlı Metin 'Tıklayarak ekleyin'" [ref=e78]:
+              - img [ref=e80]
+              - generic [ref=e83]:
+                - generic [ref=e84]: Çok Satırlı Metin
+                - generic [ref=e85]: "'Tıklayarak ekleyin'"
+          - generic [ref=e86]:
+            - heading "İpucu" [level=4] [ref=e87]
+            - paragraph [ref=e88]:
+              - text: • Bileşenleri sürükleyip sıralayabilirsiniz
+              - text: • Alanları seçip sağdaki panelden düzenleyin
+              - text: • Doğrulama kuralları ekleyin
+        - generic [ref=e89]:
+          - heading "Teknoloji Stack" [level=4] [ref=e90]
+          - list [ref=e91]:
+            - listitem [ref=e92]: "• Frontend: Next.js PWA"
+            - listitem [ref=e93]: "• Backend: NestJS + PostgreSQL"
+            - listitem [ref=e94]: "• Database: Prisma ORM"
+            - listitem [ref=e95]: "• Offline: IndexedDB"
+            - listitem [ref=e96]: "• Container: Docker"
+      - generic [ref=e98]:
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - heading "Form Tasarım Alanı" [level=2] [ref=e101]
+            - paragraph [ref=e102]: Yeni Form - Dinamik olarak oluşturuldu
+          - generic [ref=e104]: 1 bileşen
+        - generic [ref=e106]:
+          - generic [ref=e107]:
+            - generic [ref=e108]: Metin Alanı
+            - generic [ref=e109]: text
+          - textbox "Metin giriniz..." [disabled] [ref=e110]
+          - paragraph [ref=e111]: Metin giriniz...
+      - generic [ref=e113]:
+        - heading "Özellikler" [level=2] [ref=e114]
+        - generic [ref=e115]:
+          - paragraph [ref=e116]: Bir alan seçin
+          - paragraph [ref=e117]: Form alanlarından birine tıklayarak özelliklerini düzenleyin
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - heading "Koşullu Kurallar (IF-THEN)" [level=3] [ref=e120]
+            - paragraph [ref=e121]: Form alanları arasında dinamik kurallar tanımlayın
+          - generic [ref=e122]:
+            - generic [ref=e123]:
+              - generic [ref=e124]:
+                - heading "Koşullu Kurallar (IF-THEN)" [level=3] [ref=e125]
+                - paragraph [ref=e126]: Form alanları arasında koşullu kurallar tanımlayın
+              - button "Yeni Kural Ekle" [ref=e127]:
+                - img [ref=e128]
+                - text: Yeni Kural Ekle
+            - generic [ref=e130]:
+              - img [ref=e131]
+              - heading "Henüz kural tanımlanmamış" [level=4] [ref=e133]
+              - paragraph [ref=e134]: Form davranışını özelleştirmek için IF-THEN kuralları ekleyin
+              - button "İlk Kuralı Oluştur" [ref=e135]
+        - generic [ref=e136]:
+          - generic [ref=e137]:
+            - heading "Sistem Durumu" [level=3] [ref=e138]
+            - list [ref=e139]:
+              - listitem [ref=e140]:
+                - generic [ref=e141]: "Backend:"
+                - generic [ref=e142]: Çalışıyor
+              - listitem [ref=e144]:
+                - generic [ref=e145]: "Database:"
+                - generic [ref=e146]: Bağlı
+              - listitem [ref=e148]:
+                - generic [ref=e149]: "Form Alanları:"
+                - generic [ref=e150]: "1"
+              - listitem [ref=e151]:
+                - generic [ref=e152]: "Kaydedilen Formlar:"
+                - generic [ref=e153]: "0"
+              - listitem [ref=e154]:
+                - generic [ref=e155]: "Aktif Kurallar:"
+                - generic [ref=e156]: 0 kural
+              - listitem [ref=e157]:
+                - generic [ref=e158]: "Bağlantı:"
+                - generic [ref=e159]: Çevrimiçi
+            - button "Offline Formları Senkronize Et" [ref=e161]
+          - generic [ref=e162]:
+            - heading "PWA Özellikleri" [level=4] [ref=e163]
+            - list [ref=e164]:
+              - listitem [ref=e165]: • Offline Çalışabilme
+              - listitem [ref=e166]: • Ana ekrana eklenebilir
+              - listitem [ref=e167]: • Push bildirimleri (hazır)
+              - listitem [ref=e168]: • Responsive tasarım
+    - contentinfo [ref=e169]:
+      - generic [ref=e171]:
+        - generic [ref=e172]:
+          - paragraph [ref=e173]: Form Builder Projesi • Yazılım Mühendisliği • 2025
+          - paragraph [ref=e174]: "Backend: http://localhost:3001 • Frontend: http://localhost:3000"
+        - generic [ref=e175]:
+          - link "Backend API Test" [ref=e176] [cursor=pointer]:
+            - /url: http://localhost:3001/health
+          - link "Forms API Test" [ref=e177] [cursor=pointer]:
+            - /url: http://localhost:3001/forms/health
+          - link "Users API Test" [ref=e178] [cursor=pointer]:
+            - /url: http://localhost:3001/users/health
+  - button "Open Next.js Dev Tools" [ref=e184] [cursor=pointer]:
+    - img [ref=e185]
+  - alert [ref=e188]
+```

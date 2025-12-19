@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: form-builder-db
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: formbuilder
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: form-builder-backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/formbuilder
+      NODE_ENV: development
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: sh -c "npx prisma generate && npx prisma db push --accept-data-loss && npm run start:dev"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: form-builder-frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+
+  prisma-studio:
+    image: node:20-alpine
+    container_name: form-builder-prisma-studio
+    restart: always
+    working_dir: /app
+    environment:
+      DATABASE_URL: postgresql://admin:admin123@postgres:5432/formbuilder
+    depends_on:
+      - postgres
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./backend:/app
+    command: sh -c "cd /app && npx prisma studio"
+
+volumes:
+  postgres_data:

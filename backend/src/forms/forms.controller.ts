@@ -10,8 +10,7 @@ import {
   UsePipes, 
   ValidationPipe,
   HttpCode,
-  HttpStatus,
-  Query
+  HttpStatus
 } from '@nestjs/common';
 import { FormsService } from './forms.service';
 import { CreateFormDto } from './dto/create-form.dto';
@@ -31,10 +30,9 @@ export class FormsController {
   }
 
   @Get()
-  async getUserForms() {
-    // TODO: Gerçek user ID'sini auth'dan alacağız
-    const userId = 1;
-    return this.formsService.getUserForms(userId);
+  async getAllForms() {
+    // Tüm formları getir (user kontrolü kaldırıldı)
+    return this.formsService.getAllForms();
   }
 
   @Get(':id')

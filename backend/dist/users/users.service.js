@@ -63,7 +63,7 @@ let UsersService = class UsersService {
             data: {
                 email: createUserDto.email,
                 password: hashedPassword,
-                name: createUserDto.name,
+                name: createUserDto.name || 'User',
             },
             select: {
                 id: true,
@@ -105,11 +105,17 @@ let UsersService = class UsersService {
                 email: true,
                 name: true,
                 createdAt: true,
-                forms: true,
+                forms: {
+                    select: {
+                        id: true,
+                        title: true,
+                        createdAt: true,
+                    },
+                },
             },
         });
         if (!user) {
-            throw new common_1.UnauthorizedException('Kullanıcı bulunamadı');
+            throw new common_1.NotFoundException('Kullanıcı bulunamadı');
         }
         return user;
     }
@@ -126,8 +132,20 @@ let UsersService = class UsersService {
                     },
                 },
             },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
         return users;
+    }
+    async health() {
+        const userCount = await this.prisma.user.count();
+        return {
+            status: 'ok',
+            service: 'Users API',
+            userCount,
+            timestamp: new Date().toISOString(),
+        };
     }
 };
 exports.UsersService = UsersService;

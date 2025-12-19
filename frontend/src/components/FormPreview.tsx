@@ -1,134 +1,157 @@
 'use client';
 
-import React from 'react';
-
-type FormField = {
+interface FormField {
   id: string;
   type: string;
   label: string;
   required: boolean;
   placeholder?: string;
   options?: string[];
-};
+}
 
 interface FormPreviewProps {
   fields: FormField[];
   onFieldSelect: (field: FormField) => void;
-  selectedFieldId?: string;
+  selectedFieldId: string | null | undefined;
+  onDeleteField: (fieldId: string) => void; // Silme fonksiyonu eklendi
 }
 
-const FormPreview = ({ fields, onFieldSelect, selectedFieldId }: FormPreviewProps) => {
+export default function FormPreview({ 
+  fields, 
+  onFieldSelect, 
+  selectedFieldId,
+  onDeleteField 
+}: FormPreviewProps) {
   const renderField = (field: FormField) => {
-    const isSelected = field.id === selectedFieldId;
-    
-    const baseClasses = `p-4 border rounded-lg mb-3 transition-all ${
+    const isSelected = selectedFieldId === field.id;
+    const baseClasses = `relative p-4 mb-4 border rounded-lg transition-all cursor-pointer hover:shadow-md ${
       isSelected 
-        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' 
+        ? 'border-blue-500 bg-blue-50 shadow-sm' 
         : 'border-gray-200 bg-white hover:border-gray-300'
     }`;
 
     return (
       <div 
-        key={field.id}
+        key={field.id} 
         className={baseClasses}
         onClick={() => onFieldSelect(field)}
       >
-        <div className="flex items-center justify-between mb-2">
+        {/* Silme Butonu - Sağ Üst Köşe */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // Tıklamanın alan seçimini tetiklemesini engelle
+            onDeleteField(field.id);
+          }}
+          className="absolute top-2 right-2 p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition z-10"
+          title="Alanı sil"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Alan Etiketi */}
+        <div className="flex items-center gap-2 mb-3">
           <label className="block text-sm font-medium text-gray-700">
             {field.label}
             {field.required && <span className="text-red-500 ml-1">*</span>}
           </label>
           <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-            {field.type}
+            {field.type === 'text' && 'Metin'}
+            {field.type === 'email' && 'E-posta'}
+            {field.type === 'number' && 'Sayı'}
+            {field.type === 'date' && 'Tarih'}
+            {field.type === 'select' && 'Seçim'}
+            {field.type === 'checkbox' && 'Onay Kutusu'}
+            {field.type === 'textarea' && 'Açıklama'}
           </span>
         </div>
-        
-        {renderFieldInput(field)}
-        
-        {field.placeholder && (
-          <p className="text-xs text-gray-500 mt-1">{field.placeholder}</p>
-        )}
+
+        {/* Alan İçeriği */}
+        <div className="mt-2">
+          {field.type === 'text' && (
+            <input
+              type="text"
+              placeholder={field.placeholder || 'Metin giriniz...'}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+              disabled
+            />
+          )}
+          
+          {field.type === 'email' && (
+            <input
+              type="email"
+              placeholder={field.placeholder || 'email@example.com'}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+              disabled
+            />
+          )}
+          
+          {field.type === 'number' && (
+            <input
+              type="number"
+              placeholder={field.placeholder || '0'}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+              disabled
+            />
+          )}
+          
+          {field.type === 'date' && (
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+              disabled
+            />
+          )}
+          
+          {field.type === 'select' && (
+            <select 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed"
+              disabled
+            >
+              <option value="">Seçiniz...</option>
+              {field.options?.map((option, index) => (
+                <option key={index} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          )}
+          
+          {field.type === 'checkbox' && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded cursor-not-allowed"
+                disabled
+              />
+              <span className="ml-2 text-gray-600">{field.label}</span>
+            </div>
+          )}
+          
+          {field.type === 'textarea' && (
+            <textarea
+              placeholder={field.placeholder || 'Açıklama...'}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 cursor-not-allowed resize-none"
+              disabled
+            />
+          )}
+        </div>
       </div>
     );
   };
 
-  const renderFieldInput = (field: FormField) => {
-    switch (field.type) {
-      case 'text':
-      case 'email':
-      case 'number':
-        return (
-          <input
-            type={field.type}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder={field.placeholder}
-            disabled
-          />
-        );
-      
-      case 'textarea':
-        return (
-          <textarea
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder={field.placeholder}
-            rows={3}
-            disabled
-          />
-        );
-      
-      case 'date':
-        return (
-          <input
-            type="date"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled
-          />
-        );
-      
-      case 'select':
-        return (
-          <select
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled
-          >
-            <option value="">Seçiniz...</option>
-            {field.options?.map((option, index) => (
-              <option key={index} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        );
-      
-      case 'checkbox':
-        return (
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              disabled
-            />
-            <span className="ml-2 text-gray-700">Seçili</span>
-          </div>
-        );
-      
-      default:
-        return (
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            placeholder="Bilinmeyen alan türü"
-            disabled
-          />
-        );
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {fields.map(renderField)}
+      {fields.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p>Henüz form alanı eklenmedi</p>
+          <p className="text-sm mt-1">Sol taraftan bileşen ekleyin</p>
+        </div>
+      ) : (
+        fields.map(renderField)
+      )}
     </div>
   );
-};
-
-export default FormPreview;
+}

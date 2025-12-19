@@ -26,9 +26,8 @@ let FormsController = class FormsController {
         const userId = 1;
         return this.formsService.createForm(userId, createFormDto);
     }
-    async getUserForms() {
-        const userId = 1;
-        return this.formsService.getUserForms(userId);
+    async getAllForms() {
+        return this.formsService.getAllForms();
     }
     async getForm(id) {
         return this.formsService.getFormById(id);
@@ -75,7 +74,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
-], FormsController.prototype, "getUserForms", null);
+], FormsController.prototype, "getAllForms", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),

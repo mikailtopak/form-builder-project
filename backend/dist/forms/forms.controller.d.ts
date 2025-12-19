@@ -5,57 +5,37 @@ export declare class FormsController {
     private readonly formsService;
     constructor(formsService: FormsService);
     createForm(createFormDto: CreateFormDto): Promise<{
-        message: string;
-        form: {
-            user: {
-                email: string;
-                name: string | null;
-                id: number;
-            };
-        } & {
-            id: number;
-            createdAt: Date;
-            title: string;
-            description: string | null;
-            rules: import("@prisma/client/runtime/library").JsonValue | null;
-            structure: import("@prisma/client/runtime/library").JsonValue;
-            userId: number;
-        };
-    }>;
-    getUserForms(): Promise<{
         id: number;
+        title: string;
+        fields: import("@prisma/client/runtime/library").JsonValue;
+        rules: import("@prisma/client/runtime/library").JsonValue;
         createdAt: Date;
-        _count: {
-            submissions: number;
-        };
+        message: string;
+    }>;
+    getAllForms(): Promise<{
+        id: number;
         title: string;
         description: string | null;
+        fields: import("@prisma/client/runtime/library").JsonValue;
+        rules: import("@prisma/client/runtime/library").JsonValue;
+        createdAt: Date;
     }[]>;
     getForm(id: number): Promise<{
-        user: {
-            email: string;
-            name: string | null;
-            id: number;
-        };
-    } & {
         id: number;
-        createdAt: Date;
         title: string;
         description: string | null;
-        rules: import("@prisma/client/runtime/library").JsonValue | null;
-        structure: import("@prisma/client/runtime/library").JsonValue;
-        userId: number;
+        fields: import("@prisma/client/runtime/library").JsonValue;
+        rules: import("@prisma/client/runtime/library").JsonValue;
+        createdAt: Date;
     }>;
     updateForm(id: number, updateFormDto: UpdateFormDto): Promise<{
         message: string;
         form: {
             id: number;
-            createdAt: Date;
             title: string;
-            description: string | null;
-            rules: import("@prisma/client/runtime/library").JsonValue | null;
-            structure: import("@prisma/client/runtime/library").JsonValue;
-            userId: number;
+            fields: import("@prisma/client/runtime/library").JsonValue;
+            rules: import("@prisma/client/runtime/library").JsonValue;
+            createdAt: Date;
         };
     }>;
     deleteForm(id: number): Promise<{
@@ -63,18 +43,15 @@ export declare class FormsController {
         id: number;
     }>;
     submitForm(id: number, data: any): Promise<{
+        success: boolean;
         message: string;
-        submission: {
-            id: number;
-            createdAt: Date;
-            data: import("@prisma/client/runtime/library").JsonValue;
-            formId: number;
-        };
+        submissionId: number;
+        submittedAt: Date;
     }>;
     getFormSubmissions(id: number): Promise<{
         id: number;
-        createdAt: Date;
         data: import("@prisma/client/runtime/library").JsonValue;
+        submittedAt: Date;
         formId: number;
     }[]>;
     validateForm(body: {

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -26,7 +26,7 @@ export class UsersService {
       data: {
         email: createUserDto.email,
         password: hashedPassword,
-        name: createUserDto.name,
+        name: createUserDto.name || 'User',
       },
       select: {
         id: true,
@@ -62,7 +62,7 @@ export class UsersService {
       throw new UnauthorizedException('Geçersiz email veya şifre');
     }
 
-    // Başarılı login - JWT token'ı sonra ekleyeceğiz
+    // Başarılı login
     return {
       message: 'Giriş başarılı',
       user: {
@@ -81,12 +81,18 @@ export class UsersService {
         email: true,
         name: true,
         createdAt: true,
-        forms: true,
+        forms: {
+          select: {
+            id: true,
+            title: true,
+            createdAt: true,
+          },
+        },
       },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Kullanıcı bulunamadı');
+      throw new NotFoundException('Kullanıcı bulunamadı');
     }
 
     return user;
@@ -105,8 +111,22 @@ export class UsersService {
           },
         },
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
     return users;
+  }
+
+  async health() {
+    const userCount = await this.prisma.user.count();
+    
+    return {
+      status: 'ok',
+      service: 'Users API',
+      userCount,
+      timestamp: new Date().toISOString(),
+    };
   }
 }

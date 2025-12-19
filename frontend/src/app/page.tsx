@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import ComponentPalette from '@/components/ComponentPalette';
 import FormPreview from '@/components/FormPreview';
 import FormProperties from '@/components/FormProperties';
+import RuleBuilder from '@/components/RuleBuilder';
+import SavedForms from '@/components/SavedForms';
 import { formDB } from '@/lib/indexedDB';
 
 type FormField = {
@@ -15,33 +17,95 @@ type FormField = {
   options?: string[];
 };
 
+type Rule = {
+  id: string;
+  ifField: string;
+  ifCondition: 'equals' | 'contains' | 'empty' | 'checked';
+  ifValue: string;
+  thenAction: 'show' | 'hide' | 'require' | 'disable';
+  thenField: string;
+};
+
+type SavedForm = {
+  id: string;
+  title: string;
+  fields: FormField[];
+  rules: Rule[];
+  createdAt: string;
+};
+
 export default function Home() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [selectedField, setSelectedField] = useState<FormField | null>(null);
   const [formTitle, setFormTitle] = useState<string>('Yeni Form');
-  const [formDescription, setFormDescription] = useState<string>('Dinamik olarak oluşturuldu');
-  const [savedFormsCount, setSavedFormsCount] = useState<number>(0);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isClient, setIsClient] = useState(false);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [savedForms, setSavedForms] = useState<SavedForm[]>([]);
+  const [activeTab, setActiveTab] = useState<'design' | 'saved'>('design');
 
-  // Client-side kontrolü
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Kaydedilmiş form sayısını getir
-  useEffect(() => {
-    const loadSavedFormsCount = async () => {
-      try {
-        const forms = await formDB.getForms() as any[];
-        setSavedFormsCount(forms.length);
-      } catch (error) {
-        console.error('Forms count load error:', error);
-      }
+    setIsOnline(navigator.onLine);
+    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    loadSavedForms();
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
-
-    loadSavedFormsCount();
   }, []);
+
+  const loadSavedForms = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/forms');
+      
+      if (response.ok) {
+        const forms = await response.json();
+        
+        const formattedForms = forms.map((form: any) => {
+          // rules'u uygun formata çevir
+          let formattedRules: Rule[] = [];
+          
+          if (Array.isArray(form.rules)) {
+            formattedRules = form.rules;
+          } else if (form.rules && typeof form.rules === 'object') {
+            // Object'ten array'e çevir
+            formattedRules = Object.values(form.rules).map((rule: any, index) => ({
+              id: `rule_${index}`,
+              ifField: rule.ifField || '',
+              ifCondition: rule.ifCondition || 'equals',
+              ifValue: rule.ifValue || '',
+              thenAction: rule.thenAction || 'show',
+              thenField: rule.thenField || ''
+            })) as Rule[];
+          }
+          
+          return {
+            id: String(form.id),
+            title: form.title || 'İsimsiz Form',
+            fields: form.fields || [],
+            rules: formattedRules,
+            createdAt: form.createdAt || new Date().toISOString(),
+          };
+        });
+        
+        setSavedForms(formattedForms);
+      }
+    } catch (error) {
+      try {
+        const localForms = await formDB.getForms();
+        setSavedForms(localForms as SavedForm[]);
+      } catch (dbError) {
+        console.error('Local form yükleme hatası:', dbError);
+      }
+    }
+  };
 
   const handleAddField = (type: string) => {
     const newField: FormField = {
@@ -51,23 +115,24 @@ export default function Home() {
       required: false,
       placeholder: getPlaceholder(type),
     };
-    
+
     if (type === 'select') {
       newField.options = ['Seçenek 1', 'Seçenek 2'];
     }
-    
+
     setFields([...fields, newField]);
+    setSelectedField(newField);
   };
 
   const getDefaultLabel = (type: string): string => {
     const labels: Record<string, string> = {
       text: 'Metin Alanı',
-      email: 'E-posta Adresi',
+      email: 'E-posta',
       number: 'Sayı',
       date: 'Tarih',
-      select: 'Seçim Kutusu',
+      select: 'Seçim',
       checkbox: 'Onay Kutusu',
-      textarea: 'Çok Satırlı Metin',
+      textarea: 'Açıklama',
     };
     return labels[type] || 'Alan';
   };
@@ -75,10 +140,10 @@ export default function Home() {
   const getPlaceholder = (type: string): string => {
     const placeholders: Record<string, string> = {
       text: 'Metin giriniz...',
-      email: 'ornek@email.com',
+      email: 'email@example.com',
       number: '0',
       date: 'GG/AA/YYYY',
-      textarea: 'Açıklama giriniz...',
+      textarea: 'Açıklama...',
     };
     return placeholders[type] || '';
   };
@@ -88,10 +153,27 @@ export default function Home() {
   };
 
   const handleFieldUpdate = (updatedField: FormField) => {
-    setFields(fields.map(f => 
+    const newFields = fields.map(f => 
       f.id === updatedField.id ? updatedField : f
-    ));
+    );
+    setFields(newFields);
     setSelectedField(updatedField);
+  };
+
+  const handleDeleteField = (fieldId: string) => {
+    if (window.confirm('Bu alanı silmek istediğinize emin misiniz?')) {
+      const newFields = fields.filter(f => f.id !== fieldId);
+      setFields(newFields);
+      
+      if (selectedField?.id === fieldId) {
+        setSelectedField(newFields.length > 0 ? newFields[0] : null);
+      }
+      
+      const newRules = rules.filter(rule => 
+        rule.ifField !== fieldId && rule.thenField !== fieldId
+      );
+      setRules(newRules);
+    }
   };
 
   const handleSaveForm = async () => {
@@ -100,96 +182,126 @@ export default function Home() {
       return;
     }
 
+    if (!formTitle.trim()) {
+      alert('Lütfen form başlığı girin!');
+      return;
+    }
+
     setIsSaving(true);
-    
+
+    // BACKEND'İN BEKLEDİĞİ FORMAT: rules bir object olmalı
+    // Array'i object'e çeviriyoruz
+    const rulesObject = rules.reduce((acc, rule, index) => {
+      acc[`rule_${index}`] = {
+        ifField: rule.ifField,
+        ifCondition: rule.ifCondition,
+        ifValue: rule.ifValue,
+        thenAction: rule.thenAction,
+        thenField: rule.thenField
+      };
+      return acc;
+    }, {} as Record<string, any>);
+
     const formData = {
-      id: Date.now().toString(),
-      title: formTitle,
-      description: formDescription,
-      fields,
+      title: formTitle.trim(),
+      fields: fields,
+      rules: rulesObject, // Object olarak gönder
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    const isOnline = isClient ? navigator.onLine : true;
+    console.log('Kaydedilen form data:', formData); // DEBUG
 
     try {
-      // Önce backend'e kaydetmeyi dene
       const response = await fetch('http://localhost:3001/forms', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(formData),
       });
-      
+
       if (response.ok) {
         const result = await response.json();
-        alert(`Form başarıyla backend'e kaydedildi!\nForm ID: ${result.id || formData.id}`);
-        setSavedFormsCount(prev => prev + 1);
-      } else {
-        // Backend'e kaydedilemezse IndexedDB'ye kaydet (offline mode)
-        throw new Error('Backend unavailable');
-      }
-    } catch (error) {
-      // Offline mod: IndexedDB'ye kaydet
-      try {
-        await formDB.saveForm(formData);
-        alert(`İnternet bağlantısı yok! Form offline olarak kaydedildi.\nForm ID: ${formData.id}\nİnternet bağlantısı sağlandığında otomatik senkronize edilecek.`);
-        setSavedFormsCount(prev => prev + 1);
+        alert(`✅ "${formTitle}" formu başarıyla kaydedildi!`);
         
-        // Kullanıcıya senkronizasyon bilgisi göster
-        if (isOnline) {
-          setTimeout(async () => {
-            try {
-              await formDB.syncWithBackend();
-              alert('Offline formlar backend\'e senkronize edildi!');
-              const forms = await formDB.getForms() as any[];
-              setSavedFormsCount(forms.length);
-            } catch (syncError) {
-              console.error('Sync error:', syncError);
-            }
-          }, 3000);
+        await loadSavedForms();
+        setActiveTab('saved');
+        
+      } else {
+        const errorText = await response.text();
+        console.error('Server error:', errorText); // DEBUG
+        let errorMessage = 'Form kaydedilemedi!\n\n';
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.message && Array.isArray(errorData.message)) {
+            errorMessage += errorData.message.join('\n');
+          } else if (errorData.message) {
+            errorMessage += errorData.message;
+          }
+        } catch (e) {
+          errorMessage += `HTTP ${response.status}: ${errorText}`;
         }
+        
+        alert(errorMessage);
+      }
+    } catch (error: any) {
+      console.error('Fetch error:', error); // DEBUG
+      try {
+        await formDB.saveForm({
+          ...formData,
+          id: Date.now().toString(),
+          synced: false
+        });
+        alert('📴 Form local olarak kaydedildi.');
+        await loadSavedForms();
+        setActiveTab('saved');
       } catch (dbError) {
-        console.error('IndexedDB error:', dbError);
-        alert('Form kaydedilemedi! Lütfen tekrar deneyin.');
+        console.error('Local save error:', dbError);
+        alert('❌ Form kaydedilemedi!');
       }
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleSyncForms = async () => {
-    try {
-      await formDB.syncWithBackend();
-      alert('Offline formlar backend\'e senkronize edildi!');
-      const forms = await formDB.getForms() as any[];
-      setSavedFormsCount(forms.length);
-    } catch (error) {
-      console.error('Sync error:', error);
-      alert('Senkronizasyon başarısız!');
+  const handleLoadForm = (form: SavedForm) => {
+    setFields(form.fields || []);
+    setFormTitle(form.title || 'Yüklenen Form');
+    
+    // Kuralları doğrudan form.rules'dan al (zaten formatlanmış halde)
+    setRules(form.rules || []);
+    setSelectedField(form.fields?.[0] || null);
+    setActiveTab('design');
+    alert(`✅ "${form.title}" formu yüklendi!`);
+  };
+
+  const handleDeleteForm = async (formId: string) => {
+    if (confirm('Bu formu silmek istediğinize emin misiniz?')) {
+      try {
+        const response = await fetch(`http://localhost:3001/forms/${formId}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          await loadSavedForms();
+          alert('✅ Form silindi!');
+        } else {
+          alert('Form silinemedi!');
+        }
+      } catch (error) {
+        alert('Form silinemedi!');
+      }
     }
   };
 
   const handleClearForm = () => {
-    if (fields.length > 0 && confirm('Formu temizlemek istediğinize emin misiniz?')) {
+    if (fields.length === 0) return;
+    
+    if (confirm('Formu temizlemek istediğinize emin misiniz?')) {
       setFields([]);
       setSelectedField(null);
       setFormTitle('Yeni Form');
-      setFormDescription('Dinamik olarak oluşturuldu');
-    }
-  };
-
-  const handleTestBackend = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/health');
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Backend çalışıyor!\nStatus: ${data.status}\nDatabase: ${data.database}`);
-      } else {
-        alert('Backend yanıt vermiyor!');
-      }
-    } catch (error) {
-      alert('Backend bağlantı hatası!');
+      setRules([]);
     }
   };
 
@@ -229,288 +341,266 @@ export default function Home() {
         required: true
       }
     ];
-    
+
     setFields(sampleFields);
     setFormTitle('Örnek Anket Formu');
-    setFormDescription('Bu örnek form, sistemin tüm özelliklerini gösterir.');
+    setSelectedField(sampleFields[0]);
   };
 
-  // Online durumu kontrolü (sadece client-side)
-  const isOnline = isClient ? navigator.onLine : true;
-  const onlineStatusText = isClient ? (navigator.onLine ? 'Çevrimiçi' : 'Çevrimdışı') : 'Yükleniyor...';
-  const onlineStatusColor = isClient ? (navigator.onLine ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-300';
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      <header className="bg-white shadow-lg border-b">
         <div className="container mx-auto px-6 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Form Builder</h1>
-              <p className="text-gray-600">Dinamik Kurallı Form Tasarımcısı - PWA</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${onlineStatusColor}`}></div>
-                <span className="text-sm">{onlineStatusText}</span>
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 rounded-xl shadow-lg">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-              
-              <button 
-                onClick={handleTestBackend}
-                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm"
-              >
-                API Test
-              </button>
-              
-              <button 
-                onClick={handleClearForm}
-                className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm"
-                disabled={fields.length === 0}
-              >
-                Formu Temizle
-              </button>
-              
-              <button 
-                onClick={handleSaveForm}
-                disabled={isSaving || fields.length === 0}
-                className={`px-4 py-2 rounded-lg transition text-sm ${
-                  isSaving 
-                    ? 'bg-blue-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } text-white`}
-              >
-                {isSaving ? 'Kaydediliyor...' : 'Formu Kaydet'}
-              </button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 font-sans">Form Builder</h1>
+                <p className="text-gray-600 font-medium">Kolay ve hızlı form oluşturma aracı</p>
+              </div>
             </div>
-          </div>
 
-          {/* Form Title & Description */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Form Başlığı</label>
-              <input
-                type="text"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Form başlığını giriniz"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Form Açıklaması</label>
-              <input
-                type="text"
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Form açıklamasını giriniz"
-              />
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+              <span className="text-sm font-medium">
+                {isOnline ? 'Çevrimiçi' : 'Çevrimdışı'}
+              </span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Sidebar - Component Palette */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow p-4 h-full">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Bileşenler</h2>
-                <button 
-                  onClick={handleLoadSampleForm}
-                  className="px-3 py-1 text-sm bg-green-50 text-green-700 rounded hover:bg-green-100"
-                >
-                  Örnek Form
-                </button>
-              </div>
-              <ComponentPalette onAddField={handleAddField} />
-              
-              <div className="mt-6 p-3 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Teknoloji Stack</h4>
-                <ul className="text-xs space-y-1 text-blue-600">
-                  <li>• Frontend: Next.js PWA</li>
-                  <li>• Backend: NestJS + PostgreSQL</li>
-                  <li>• Database: Prisma ORM</li>
-                  <li>• Offline: IndexedDB</li>
-                  <li>• Container: Docker</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Center - Form Builder Area */}
-          <div className="lg:col-span-6">
-            <div className="bg-white rounded-lg shadow p-6 h-full">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">Form Tasarım Alanı</h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {formTitle} - {formDescription}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">
-                    {fields.length} bileşen
-                  </span>
-                  {isClient && !navigator.onLine && (
-                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                      Çevrimdışı Mod
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              {fields.length > 0 ? (
-                <FormPreview 
-                  fields={fields}
-                  onFieldSelect={handleFieldSelect}
-                  selectedFieldId={selectedField?.id}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 mb-4">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <p className="text-gray-500 mb-2">Formunuz henüz boş</p>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Sol taraftaki bileşenlerden ekleyin veya "Örnek Form" butonuna tıklayın
-                  </p>
-                  <button 
-                    onClick={handleLoadSampleForm}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                  >
-                    Örnek Form Yükle
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Sidebar - Properties & Info */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-lg shadow p-4 h-full">
-              <h2 className="text-lg font-semibold mb-4">Özellikler</h2>
-              {selectedField ? (
-                <FormProperties 
-                  field={selectedField}
-                  onUpdate={handleFieldUpdate}
-                />
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p className="mb-2">Bir alan seçin</p>
-                  <p className="text-sm">Form alanlarından birine tıklayarak özelliklerini düzenleyin</p>
-                </div>
-              )}
-              
-              <div className="mt-8 space-y-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h3 className="font-medium text-blue-800 mb-2">Sistem Durumu</h3>
-                  <ul className="text-sm space-y-1 text-blue-600">
-                    <li className="flex items-center justify-between">
-                      <span>Backend:</span>
-                      <span className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                        Çalışıyor
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>Database:</span>
-                      <span className="flex items-center">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                        Bağlı
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>Form Alanları:</span>
-                      <span className="font-medium">{fields.length}</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>Kaydedilen Formlar:</span>
-                      <span className="font-medium">{savedFormsCount}</span>
-                    </li>
-                    <li className="flex items-center justify-between">
-                      <span>Bağlantı:</span>
-                      <span className={`px-2 py-0.5 rounded text-xs ${
-                        isClient 
-                          ? (navigator.onLine ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {onlineStatusText}
-                      </span>
-                    </li>
-                  </ul>
-                  
-                  <div className="mt-3 pt-3 border-t border-blue-100">
-                    <button
-                      onClick={handleSyncForms}
-                      disabled={!isOnline}
-                      className={`w-full px-3 py-1.5 rounded text-sm ${
-                        isOnline 
-                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      Offline Formları Senkronize Et
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <h4 className="text-sm font-medium text-green-800 mb-1">PWA Özellikleri</h4>
-                  <ul className="text-xs space-y-1 text-green-600">
-                    <li>• Offline çalışabilme</li>
-                    <li>• Ana ekrana eklenebilir</li>
-                    <li>• Push bildirimleri (hazır)</li>
-                    <li>• Responsive tasarım</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+      <div className="bg-white border-b shadow-sm">
+        <div className="container mx-auto px-6">
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setActiveTab('design')}
+              className={`px-6 py-3 font-medium rounded-t-lg transition flex items-center gap-2 ${
+                activeTab === 'design'
+                  ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <span>📝</span>
+              <span>Form Tasarımı</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={`px-6 py-3 font-medium rounded-t-lg transition flex items-center gap-2 ${
+                activeTab === 'saved'
+                  ? 'bg-green-50 text-green-700 border-b-2 border-green-600'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <span>💾</span>
+              <span>Kayıtlı Formlar ({savedForms.length})</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
+      <main className="container mx-auto px-6 py-6">
+        {activeTab === 'design' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-lg shadow p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-gray-800">Bileşenler</h2>
+                  <button
+                    onClick={handleLoadSampleForm}
+                    className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition"
+                    title="Örnek form yükle"
+                  >
+                    Örnek
+                  </button>
+                </div>
+                <ComponentPalette onAddField={handleAddField} />
+              </div>
+
+              <div className="bg-white rounded-lg shadow p-4 mt-6">
+                <h3 className="font-semibold text-gray-800 mb-3">İstatistikler</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Alan Sayısı</span>
+                    <span className="font-bold text-blue-600">{fields.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Kural Sayısı</span>
+                    <span className="font-bold text-purple-600">{rules.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Kayıtlı Form</span>
+                    <span className="font-bold text-green-600">{savedForms.length}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="bg-white rounded-lg shadow h-full">
+                <div className="p-6 border-b">
+                  <div className="max-w-2xl">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Form Başlığı
+                    </label>
+                    <input
+                      type="text"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      className="w-full px-4 py-3 text-xl bg-white border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition font-medium"
+                      placeholder="Formunuzun başlığını yazın..."
+                    />
+                    <p className="text-sm text-gray-500 mt-2">
+                      Bu başlık formunuzun ana başlığı olacak ve kayıtlı formlarda görünecek
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-800">Form Önizleme</h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleClearForm}
+                        disabled={fields.length === 0}
+                        className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50 transition"
+                      >
+                        Temizle
+                      </button>
+                      <button
+                        onClick={handleSaveForm}
+                        disabled={isSaving || fields.length === 0}
+                        className={`px-4 py-2 text-sm rounded transition ${
+                          isSaving 
+                            ? 'bg-blue-400 cursor-not-allowed' 
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                        } text-white disabled:opacity-50 flex items-center gap-2`}
+                      >
+                        {isSaving ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Kaydediliyor...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>💾</span>
+                            <span>Formu Kaydet</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {fields.length > 0 ? (
+                    <div>
+                      <div className="mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">{formTitle || 'Form Başlığı'}</h3>
+                        <p className="text-gray-600">
+                          Bu form {fields.length} soru içermektedir. Lütfen tüm alanları doldurun.
+                        </p>
+                      </div>
+                      
+                      <FormPreview
+                        fields={fields}
+                        onFieldSelect={handleFieldSelect}
+                        selectedFieldId={selectedField?.id}
+                        onDeleteField={handleDeleteField}
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-700 mb-2">Formunuz Boş</h3>
+                      <p className="text-gray-500 mb-4">
+                        Sol taraftan bileşen ekleyin veya "Örnek" butonuna tıklayın
+                      </p>
+                      <button
+                        onClick={handleLoadSampleForm}
+                        className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded hover:from-green-600 hover:to-green-700 transition"
+                      >
+                        📋 Örnek Form Yükle
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3 space-y-6">
+              <div className="bg-white rounded-lg shadow p-4">
+                <h2 className="font-semibold text-gray-800 mb-4">Alan Özellikleri</h2>
+                {selectedField ? (
+                  <FormProperties
+                    field={selectedField}
+                    onUpdate={handleFieldUpdate}
+                  />
+                ) : (
+                  <div className="text-center py-6 text-gray-500">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                    <p>Form alanı seçin</p>
+                    <p className="text-sm mt-1">Alanlara tıklayarak düzenleyebilirsiniz</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="bg-white rounded-lg shadow p-4">
+                <h2 className="font-semibold text-gray-800 mb-4">Koşullu Kurallar</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Alanlar arası ilişkiler kurmak için kurallar oluşturun.
+                </p>
+                <RuleBuilder 
+                  fields={fields.map(f => ({
+                    id: f.id,
+                    label: f.label,
+                    type: f.type
+                  }))}
+                  onRulesChange={setRules}
+                  initialRules={rules}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <SavedForms
+            forms={savedForms}
+            onLoadForm={handleLoadForm}
+            onDeleteForm={handleDeleteForm}
+            onRefresh={loadSavedForms}
+          />
+        )}
+      </main>
+
       <footer className="bg-white border-t mt-8">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-center md:text-left">
-              <p className="text-gray-700">Form Builder Projesi • Yazılım Mühendisliği • {new Date().getFullYear()}</p>
-              <p className="text-sm text-gray-500 mt-1">
-                Backend: http://localhost:3001 • Frontend: http://localhost:3000
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <a 
-                href="http://localhost:3001/health" 
-                target="_blank"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Backend API Test
-              </a>
-              <a 
-                href="http://localhost:3001/forms/health" 
-                target="_blank"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Forms API Test
-              </a>
-              <a 
-                href="http://localhost:3001/users/health" 
-                target="_blank"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Users API Test
-              </a>
-            </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Form Builder • {new Date().getFullYear()}
+            </p>
           </div>
         </div>
       </footer>
+
+      {isSaving && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Form Kaydediliyor</h3>
+            <p className="text-gray-600">Lütfen bekleyin...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
